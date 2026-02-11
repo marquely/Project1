@@ -141,40 +141,55 @@ These are our results:
 ### 5- and 10-fold cross validations
 ```{r results5, echo=TRUE}
 
-# pull means from each cross validation
-cv_table <- data.frame(
+# pull values from each cross validation
+cv_meantable <- data.frame(
   GLM = c(GLM_5_all$mean, GLM_10_all$mean),
   kNNC = c(kNNC_5_all$mean, kNNC_10_all$mean)
 )
 
+cv_sdtable <- data.frame(
+  GLM = c(GLM_5_all$sd, GLM_10_all$sd),
+  kNNC = c(kNNC_5_all$sd, kNNC_10_all$sd)
+)
 # name rows in table
-rownames(cv_table) <- c("**5-fold**", "**10-fold**")
+rownames(cv_meantable) <- c("**5-fold**", "**10-fold**")
+rownames(cv_sdtable) <- c("**5-fold**", "**10-fold**")
 
+```
+
+### Mean values
+```{r mean results, echo=TRUE}
 # display 2x2 table
-kable(cv_table, digits = 4)
+kable(cv_meantable, digits = 4)
+```
 
+### SD values
+```{r sd results, echo=TRUE}
+# display 2x2 table
+kable(cv_sdtable, digits = 4)
 ```
 
 ## Discussion
 
-Both cross validations (kNNC and GLM) had misclassifications rates of approximately 7%. The lowest missclassification rate was the 10-fold kNNC with a rate of 6.34%. 
+Both cross validations (kNNC and GLM) had misclassifications rates of approximately 7%. The lowest missclassification rate was the 10-fold kNNC with a rate of 6.34%. Based on the values in the mean table above the 10-fold kNNC is suggested to make slightly better predictions than the 5-fold kNNC model.However this trend is opposite when evaluating the GLM results. The 5-fold GLM validation misclassified at 6.76%, while the 10-fold GLM validation had a higher rate of misclassfication at 6.94%.Therefore the GLM values suggest that the 5-fold validation group makes more accurate predictions.
 
-Based on the values in the table above the 10-fold kNNC is suggested to make slightly better predictions than the 5-fold kNNC model.
+In terms of standard deviation the 5-fold kNNC group had the lowest sd (0.0111) indicating that the data has a smaller spread than the other groups. The remaining groups showed sd values close to 0.02. 
 
-However this trend is opposite when evaluating the GLM results. The 5-fold GLM validation misclassified at 6.76%, while the 10-fold GLM validation had a higher rate of misclassfication at 6.94%.
-
-Therefore the GLM values suggest that the 5-fold validation group makes more accurate predictions.
+Both algorithms appear to create decent quality predictions due to accuracy values being >90%.
 
 # Part 2
 
 ```{r part2, echo=TRUE}
 source("Project1fs.R")
+```
+## Part 2 Results 
 
+```{r part2 results, echo=TRUE}
 centroid_res <- cross_validation(5, alg="centroid")
 GLM_res <- cross_validation(5, alg="GLM")
 
 comparison <- data.frame(
-  Algorithm = c("Centroid", "GLM"),
+  Algorithm = c("Centroid.fs", "GLM.fs"),
   Mean = c(centroid_res$mean, GLM_res$mean),
   SD = c(centroid_res$sd, GLM_res$sd)
 )
@@ -182,4 +197,11 @@ comparison <- data.frame(
 knitr::kable(comparison)
 ```
 
-When using feature selection on this dataset the centroid based model had a misclassification rate of 6.2% while the GLM model had a higher misclassification rate which was 6.8%.These values suggest that the centroid algorithm has the potential to make more accurate predictions than the regression based algorithm. 
+## Part 2 Discussion
+
+When using feature selection on this dataset the centroid based model had a misclassification rate of 6.2% while the GLM model had a higher misclassification rate which was 7.8%.These values suggest that the centroid algorithm has the potential to make more accurate predictions than the regression based algorithm. 
+
+The spread of sd for the feature selection groups showed that the centroid model had a small spread with an sd of 0.0391 while the regression model had an sd of 0.054. This is similar what was observed in the models from part 1 where we observed that the centroid group had the lowest spread based on sd value.
+
+Both algorithms used in feature selection are have accuracy values >90%, which indicates good performance from our model.
+
