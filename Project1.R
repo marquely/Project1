@@ -58,7 +58,7 @@ Basal <- data[data$gene_id %in% first10,header2=='Basal-like']
  c(mean(result), sd(result))
 #}
 
-#x<-data.frame(three=cross_validation(3), five=cross_validation(5), ten=cross_validation(10))
-#rownames(x) <- c('mean','sd')
-#x
+x<-data.frame(three=cross_validation(3), five=cross_validation(5), ten=cross_validation(10))
+rownames(x) <- c('mean','sd')
+x
 

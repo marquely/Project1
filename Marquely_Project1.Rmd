@@ -1,0 +1,185 @@
+---
+title: "Project1"
+author: Lindsey Marquez
+output: word_document
+---
+
+```{r setup, include=TRUE}
+library(knitr)
+knitr::opts_chunk$set(echo = TRUE)
+
+# Read file
+file <- "TCGA_breast_cancer_ERpositive_vs_ERnegative_PAM50.tsv"
+
+first10 <- c('NAT1','BIRC5','BAG1','BCL2','BLVRA','CCNB1','CCNE1','CDC6','CDC20','CDH3')
+```
+## Assignment
+
+**1.** For the assignment use the second dataset called TCGA_breast_cancer_ERpositive_vs_ERnegative_PAM50.tsv that shows ER assignment for each sample (Positive vs. Negative).
+ 
+**2.** Compute 5-fold and 10-fold cross-validation estimates of prediction accuracies of ER using all genes by utilizing logistic regression and compare with NNC (2x2 table).
+
+**3.** Modify the the R markdown document template to report your computation and results in a table format.
+
+**4.** Comment on the quality of results
+
+**5.** In the second part of the assignment use Project1fs.R to process a large data set by first removing all genes with sd < 1 and subsequently use Feature selection to pick top 50 genes vs top 100 genes for cross-validation based on the t-test statistic.
+
+**6.** For extra credit – please replace centroid based classifier with one utilizing logistic or lasso regression similarly to the first part of the assignment and report on any difficulties.
+
+## Reading data
+
+Please add R code that reads data here - 
+reading file: `r file`
+
+```{r reading_data, echo=TRUE}
+system.time({
+# important -- this makes sure our runs are consistent and reproducible
+set.seed(0)
+
+header <- scan(file, nlines = 1, sep="\t", what = character())
+data <- read.table(file, skip = 2, header = FALSE, sep = "\t", quote = "", check.names=FALSE)
+
+header[1] <- "gene_id"
+names(data) <- header
+
+header2 <- scan(file, skip = 1, nlines = 1, sep="\t", what = character())
+
+Positive <-  data[, header2 == "Positive", drop = FALSE]
+Negative <-  data[, header2 == "Negative", drop = FALSE]
+
+})
+```
+
+## Computation
+
+Please add R code that computes the results
+
+```{r computation, echo=TRUE}
+
+# Define function cross_valid so we can rerun the cross validation with various parameters
+
+cross_validation <- function (nfold, alg="centroid") {
+
+# Split each cancer type samples into nfold groups
+Positive_groups <- split(sample(colnames(Positive)), 1+(seq_along(colnames(Positive)) %% nfold))
+Negative_groups <- split(sample(colnames(Negative)), 1+(seq_along(colnames(Negative)) %% nfold))
+
+result <- array()
+
+# Iterate from 1 to nfold groups -- to choose test group
+for (test_group in 1:nfold) {
+  
+  # Return all samples in the chosen test group
+  testPositive <- Positive[,colnames(Positive) %in% unlist(Positive_groups[test_group])]
+  testNegative <- Negative[,colnames(Negative) %in% unlist(Negative_groups[test_group])]
+  
+  # Return all samples *not* in the chosen test group 
+  trainingPositive <- Positive[,!(colnames(Positive) %in% unlist(Positive_groups[test_group]))]
+  trainingNegative <- Negative[,!(colnames(Negative) %in% unlist(Negative_groups[test_group]))]
+  
+  # Centroid function
+  if (alg == "centroid") { 
+    
+    #Take row means to calculate centroids
+    centroidERpos <- rowMeans(trainingPositive) 
+    centroidERneg <- rowMeans(trainingNegative) 
+    
+    # Calculate misclassified centroid predictions 
+    misclassifiedERpos <- sum(apply(testPositive, 2, function(x) sum(abs(x - centroidERpos)) > sum(abs(x - centroidERneg))))
+    misclassifiedERneg <- sum(apply(testNegative, 2, function(x) sum(abs(x - centroidERpos)) < sum(abs(x - centroidERneg)))) 
+  }
+  
+  # General linear model function
+  if (alg == "GLM") { 
+    
+  # Build training data frame 
+  trainingER <- rbind( cbind(data.frame(t(trainingPositive)), cancer = 1),   cbind(data.frame(t(trainingNegative)), cancer = 0) )
+  
+  # Build test data set 
+  test_ER <- rbind( data.frame(t(testPositive)), 
+              data.frame(t(testNegative)))
+  
+  # Provide true labels 
+  truth <- c(rep(1, ncol(testPositive)), rep(0, ncol(testNegative)))
+  
+  # Create logistic regression model
+  model <- glm(cancer ~ ., data = trainingER, family = binomial)
+  
+  # Prediction model using regression
+  p <- predict(model, newdata = test_ER, type = "response")
+  preds <- ifelse(p < 0.5, 0, 1)
+  
+  # Calculate false positive and false negative predictions
+  misclassifiedERpos <- sum(preds[truth == 1] == 0)
+  misclassifiedERneg <- sum(preds[truth == 0] == 1) } 
+  
+  # Calculate fold-level error rate
+  result[test_group] <- (misclassifiedERpos + misclassifiedERneg) / (ncol(testPositive) + ncol(testNegative))
+  }
+  return(list(mean = mean(result), sd = sd(result)))
+ c(mean(result), sd(result))
+ paste("mean=",mean(result),"sd=",sd(result))
+}
+system.time({
+
+# 5-fold cross validation
+kNNC_5_all <- cross_validation(nfold=5)
+GLM_5_all <- cross_validation(nfold=5, alg="GLM")
+
+# 10-fold cross validation
+kNNC_10_all <- cross_validation(nfold=10)
+GLM_10_all <- cross_validation(nfold=10, alg="GLM")
+
+})
+
+```
+## Results
+
+These are our results:
+
+### 5- and 10-fold cross validations
+```{r results5, echo=TRUE}
+
+# pull means from each cross validation
+cv_table <- data.frame(
+  GLM = c(GLM_5_all$mean, GLM_10_all$mean),
+  kNNC = c(kNNC_5_all$mean, kNNC_10_all$mean)
+)
+
+# name rows in table
+rownames(cv_table) <- c("**5-fold**", "**10-fold**")
+
+# display 2x2 table
+kable(cv_table, digits = 4)
+
+```
+
+## Discussion
+
+Both cross validations (kNNC and GLM) had misclassifications rates of approximately 7%. The lowest missclassification rate was the 10-fold kNNC with a rate of 6.34%. 
+
+Based on the values in the table above the 10-fold kNNC is suggested to make slightly better predictions than the 5-fold kNNC model.
+
+However this trend is opposite when evaluating the GLM results. The 5-fold GLM validation misclassified at 6.76%, while the 10-fold GLM validation had a higher rate of misclassfication at 6.94%.
+
+Therefore the GLM values suggest that the 5-fold validation group makes more accurate predictions.
+
+# Part 2
+
+```{r part2, echo=TRUE}
+source("Project1fs.R")
+
+centroid_res <- cross_validation(5, alg="centroid")
+GLM_res <- cross_validation(5, alg="GLM")
+
+comparison <- data.frame(
+  Algorithm = c("Centroid", "GLM"),
+  Mean = c(centroid_res$mean, GLM_res$mean),
+  SD = c(centroid_res$sd, GLM_res$sd)
+)
+
+knitr::kable(comparison)
+```
+
+When using feature selection on this dataset the centroid based model had a misclassification rate of 6.2% while the GLM model had a higher misclassification rate which was 6.8%.These values suggest that the centroid algorithm has the potential to make more accurate predictions than the regression based algorithm. 
